@@ -1,0 +1,236 @@
+<h2>Remote home supervision and control</h2>
+<pre>
+ethernet remote device with a local sensirion 
+sht11 sensor (humidity + temperature) and
+an outdoor ds18s20 temperature sensor.
+
+You should use a 4K7 or 10K pull-up resistor for the ds18s20
+to use with cables longer that 15cm. The resistor goes between PD6 and Vcc.
+
+See http://tuxgraphics.org/electronics/
+
+Copyright of most software and all diagrams: Guido Socher
+
+License for the web server software: GPL V2
+See http://www.gnu.org/licenses/gpl.html
+
+<b>Sensor connection</b>
+
+SHT11 sensor:
+Sensor GND --- GND  (available on the digital IO port of the web-server board)
+Sensor Vcc --- 3.3V (available on the digital IO port of the web-server board)
+Sensor SCK  --- PB0 (digital IO port)
+Sensor Data --- PD0 (digital IO port)
+
+DS18S20 sensor:
+Sensor GND --- GND  (available on the digital IO port of the web-server board)
+Sensor Data --- PD6 (digital IO port)
+Sensor Vcc --- 3.3V (available on the digital IO port of the web-server board)
+
+The length of the cable between sht11 sensor and ethernet board should be
+0.6m (2foot) or less. If you add a 100nF capacitor at the sht11 sensor between 
+Vcc and GND and a 10K pull-up resistor (between Vcc and Data) then you can 
+extend the cable length (about 3m, 6foot, are possible).
+
+The length of the cable between ds18s20 sensor and ethernet board
+can easily be 10m (33foot).
+
+<hr>
+
+ All parts needed to build this AVR ethernet solution can be ordered from 
+ <a href=http://shop.tuxgraphics.org/>http://shop.tuxgraphics.org/</a>
+
+<h2>Compiling the software</h2>
+
+!! READ THIS FIRST !!
+---------------------
+! Edit the file main.c and change the 2 lines:
+! static uint8_t mymac[6] = {0x54,0x55,0x58,0x10,0x00,0x29};
+! static uint8_t myip[4] = {10,0,0,29};
+
+For the first device you build you will not need to change the mymac line.
+But you will probably need to change the IP address (myip). It must be a
+free address from the address range in your home network.
+
+Use an IP address in the same network as you DSL router.
+
+Example: you wlan router might have 192.168.1.1, your PC might have
+192.168.1.2. This means you could e.g use 192.168.1.10 and leave some
+room for more PCs. 
+
+Edit the beginning of the make file. And adjust those lines according to the
+CPU you use (atmega168 or atmega328p or atmega644):
+
+  MCU=atmega168
+  DUDECPUTYPE=m168
+  or
+  MCU=atmega328p
+  DUDECPUTYPE=m328p
+  or
+  MCU=atmega644
+  DUDECPUTYPE=m644
+
+
+Edit the avrdude command definition:
+# linux (plug in the avrusb500 and type dmesg to see which device it is):
+LOADCMD=avrdude -P /dev/ttyUSB0
+
+# mac (plug in the programmer and use ls /dev/tty.usbserial* to get the name):
+LOADCMD=avrdude -P /dev/tty.usbserial-A9006MOb
+
+# windows (check which com-port you get when you plug in the avrusb500):
+LOADCMD=avrdude -P COM4
+
+More information about Makefiles can be found at:
+http://tuxgraphics.org/electronics/200912/makefiles.shtml
+
+To compile the final software use the command:
+make
+
+Note: windows users may use and modify the supplied winmake.bat to setup the
+environment correctly.
+
+The above command will compile the following hex file:
+main.hex 
+
+
+<h2>Loading the software into the board</h2>
+
+The makefile included as well a command to load
+the hex file using avrusb500 in combination with avrdude.
+You may use your own method to load the file.
+
+make load
+
+The "make load" command will run something like: 
+   avrdude -p m168 -c stk500v2 -e -U flash:w:main.hex
+
+Note: your programmer might interfere with the enc28j60! If you use
+an avrusb500 then you can normally leave the cable on. For all other 
+programmers it is saver to remove the programmer cable and power down/up 
+the ethernet board. This is because the SPI interface is used for 
+loading of the software and communication to the enc28j60.
+
+To see a list of all possible build targets run the command:
+make help
+
+<h2>Selecting the right clock source</h2>
+Tuxgraphics hardware sold as of march 2007 is prepared to use the clock
+signal from the enc28j60. To use this you need to change the 
+low fuse byte once from 0x62 to 0x60:
+
+<b>
+avrdude -p m168 -c stk500v2 -u -v -U lfuse:w:0x60:m
+or
+avrdude -p m328p -c stk500v2 -u -v -U lfuse:w:0x60:m
+or
+avrdude -p m644 -c stk500v2 -u -v -U lfuse:w:0x60:m
+</b>
+
+The above command can as well be executed by using the make
+file. In a Linux shell you can just type:
+make fuse
+
+Note: windows users may use and modify the supplied winsetfuse.bat script.
+
+After programming the fuse settings of an atmega168 should be:
+ low fuse:  0x60
+ high fuse: 0xdf
+ ext. fuse: 0x01
+
+For the atmega328p the hfuse and efuse bytes look slightly different.
+The idea is however the same. Just change the lfuse from factory default
+to 0x60. The fuse settings of the atmega328p are after programming
+should be as below (default factory settings for atmega328p, the
+efuse has some not used bits and is dependent on the chip revision):
+ lfuse reads as 0x60
+ hfuse reads as 0xD9
+ efuse reads as 0x07
+
+Fuses of the atmega644/atmega644a after programming:
+ Device signature = 0x1e9609
+ lfuse reads as 60
+ hfuse reads as 99
+ efuse reads as FF
+
+details of the lfuse bits:
+  CKDIV8 = 0
+  CKOUT  = 1
+  SUT1   = 1
+  SUT0   = 0
+  CKSEL3 = 0
+  CKSEL2 = 0
+  CKSEL1 = 0
+  CKSEL0 = 0
+
+
+If you are unsure what the current fuse setting are on the atmega
+then you can read the fuse settings with a command like:
+          avrdude -p m168 -c stk500v2 -v -q
+
+The below list of fuses shows for reference purpose the settings
+of a new and never programmed chip. 
+
+The result should be this (default factory settings for atmega168):
+          lfuse reads as 62
+          hfuse reads as DF
+          efuse reads as 1
+
+The result should be this (default factory settings for atmega328p):
+          lfuse reads as 62
+          hfuse reads as D9
+          efuse reads as 7
+
+The result should be this (default factory settings for atmega644/atmega644a):
+          Device signature = 0x1e9609
+          lfuse reads as 62
+          hfuse reads as 99
+          efuse reads as FF
+
+<h2>Compilation on non-Unix systems</h2>
+Please use the provided Makefile !!!
+
+It will also work under Windows.
+
+Take a look at the supplied winmake.bat and winload.bat file. The bat script
+might be needed to set the environment correctly.
+
+Take a look at the supplied winmake.bat and winload.bat file. The bat script
+might be needed to set the environment correctly in order to use
+the Makefile under windows.
+
+Edit the Makefile to make the needed adjustments at the top
+of the file.
+
+More information about Makefiles can be found at:
+http://tuxgraphics.org/electronics/200912/makefiles.shtml
+
+<h2>Using the board to measure temperature and humidity</h2>
+Point your web browser to
+http://10.0.0.29   (or what ever IP address you have given your hardware)
+
+You should get a web page like this:
+
+________________________________________
+[switch] [cfg] [graph] [refresh]
+
+Current conditions
+
+Indoor
+temp.    : 22.3'C [72'F]
+humidity : 47%
+dew point: 9.8'C [49'F]
+
+Outdoor
+temp.    : 8.6'C [47'F]
+________________________________________
+(c)tuxgraphics
+
+<h2>Revision history</h2>
+2009-10-25: version 3.4 -- first public version. Based on eth_rem_dev_sensirion-3.3.tar.gz
+2009-10-31: version 3.5 -- update onewire code to not block. Update store graph function. Minor clean-up after code review.
+2009-12-30: version 3.6 -- updated Makefile for mac and windows
+2010-07-05: version 3.7 -- update for atmega644/atmega644a
+                        -- change clock compensation to be more precise
+# vim:sw=8:ts=8:si:et
+</pre>
