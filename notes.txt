@@ -1,0 +1,3 @@
+ToDo:
+
+Safe handling when sensor reading fail
