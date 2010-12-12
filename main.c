@@ -453,6 +453,14 @@ uint16_t print_webpage_sensordetails(void)
         plen=fill_tcp_data_int(buf,plen,tankTempBottom);
         plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
 
+        plen=fill_tcp_data_p(buf,plen,PSTR("S Raw: "));
+        plen=fill_tcp_data_int(buf,plen,gOWTempdata[0]);
+        plen=fill_tcp_data_p(buf,plen,PSTR(" : "));
+        plen=fill_tcp_data_int(buf,plen,gOWTempdata[1]);
+        plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
+
+        
+
 END_OF_WEBPAGE:
         plen=fill_tcp_data_p(buf,plen,PSTR("\n</pre><hr>(c)robinclarke.net\n"));
         return(plen);
@@ -497,19 +505,37 @@ int8_t analyse_get_url(char *str)
                 return(-1);
         }
         //RCL
+        // Set the Bottom temperature
+        if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"s_bot")){
+            urldecode(gStrbuf);
+            unsigned int newTemp = atoi( gStrbuf );
+            if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
+                urldecode(gStrbuf);
+                if (verify_password(gStrbuf)){
+                    tankTempBottom = newTemp;
+                    eeprom_write_byte((uint8_t *)14,26 );
+                    eeprom_write_byte((uint8_t *)15,tankTempBottom );
+                    return(1);
+                }
+            }
+            return( -1 );
+        }
         // Set the Top temperature
         if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"s_top")){
-          urldecode(gStrbuf);
-          unsigned int newTop = atoi( gStrbuf );
-          if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
             urldecode(gStrbuf);
-            if (verify_password(gStrbuf)){
-              tankTempTop = newTop;
-              return(1);
+            unsigned int newTemp = atoi( gStrbuf );
+            if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
+                urldecode(gStrbuf);
+                if (verify_password(gStrbuf)){
+                    tankTempTop = newTemp;
+                    eeprom_write_byte((uint8_t *)16,26 );
+                    eeprom_write_byte((uint8_t *)17,tankTempTop );
+                    return(1);
+                }
             }
-          }
+            return( -1 );
         }
-        //
+         //
         if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"sw")){
                 i=0;
                 // state of the transistor/relay
@@ -746,7 +772,6 @@ int main(void){
         // enc28j60PhyWrite(PHLCON,0b0000 0100 0111 01 10);
         enc28j60PhyWrite(PHLCON,0x476);
 
-
         //init the ethernet/ip layer:
         init_ip_arp_udp_tcp(mymac,myip,mywwwport);
 
@@ -760,17 +785,36 @@ int main(void){
         if (eeprom_read_byte((uint8_t *)18) == 26){
                 rec_interval=(uint8_t)eeprom_read_byte((uint8_t *)19);
         }
+
+        //RCL Read the top/bottom target tank temperatures from the eeprom
+        if (eeprom_read_byte((uint8_t *)14) == 26){
+            // magic byte in eeprom - if 14 is set to 26, we know 15 will have the tankTempBottom
+            tankTempBottom=(int)eeprom_read_byte((uint8_t *)15);
+        }
+        if (eeprom_read_byte((uint8_t *)16) == 26){
+            // magic byte in eeprom - if 16 is set to 26, we know 17 will have the tankTempTop
+            tankTempBottom=(int)eeprom_read_byte((uint8_t *)17);
+        }
+
+
         while(1){
                 // get the next new packet:
                 gPlen = enc28j60PacketReceive(BUFFER_SIZE, buf);
                 dat_p=packetloop_icmp_tcp(buf,gPlen);
 
-                if( switchStateTarget == 0 ){
-                  switchStateTarget = 1;
-                }else{
-                  switchStateTarget = 0;
+                // Need two sensors to test with.  Assuming that the tank is the second sensor
+                if( gOWsensors > 1 ) {
+                    if(  gOWTempdata[1] > tankTempTop ){
+                        // If higher than top, turn on
+                        PORTD|= (1<<PORTD7);// transistor on
+                        switchStateTarget = 1;
+                    }else if(  gOWTempdata[1] < tankTempBottom ){
+                        // if lower than bottom, turn off
+                        PORTD &= ~(1<<PORTD7);// transistor off
+                        switchStateTarget = 0;
+                    }
                 }
-                
+  
                 /*dat_p will ne unequal to zero if there is a valid 
                  * packet (without crc error) */
                 if(dat_p==0){
