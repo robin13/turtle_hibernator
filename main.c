@@ -88,6 +88,12 @@ static volatile uint8_t gMeasurementTimer=0; // sec
 static uint16_t gRecMin=0; // miniutes counter for recording of history graphics
 //
 
+//RCL Turtle control
+unsigned int tankTempTop       = 110;
+unsigned int tankTempBottom    = 100;
+unsigned int switchStateTarget = 0;
+
+
 // how many values to store (watch out for eeprom overflow):
 #define HIST_BUFFER_SIZE 72
 // position at which the EEPROM is used for storage of temp. data:
@@ -433,8 +439,22 @@ uint16_t print_webpage_sensordetails(void)
         if (gOWTemp_measurementstatus==1){
                 plen=fill_tcp_data_p(buf,plen,PSTR("ds18x20 error\n"));
         }
+
+        //RCL
+        plen=fill_tcp_data_p(buf,plen,PSTR("SwitchState: "));
+        plen=fill_tcp_data_int(buf,plen,switchStateTarget);
+        plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
+
+        plen=fill_tcp_data_p(buf,plen,PSTR("tankTempTop: "));
+        plen=fill_tcp_data_int(buf,plen,tankTempTop);
+        plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
+
+        plen=fill_tcp_data_p(buf,plen,PSTR("tankTempBottom: "));
+        plen=fill_tcp_data_int(buf,plen,tankTempBottom);
+        plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
+
 END_OF_WEBPAGE:
-        plen=fill_tcp_data_p(buf,plen,PSTR("\n</pre><hr>(c)tuxgraphics\n"));
+        plen=fill_tcp_data_p(buf,plen,PSTR("\n</pre><hr>(c)robinclarke.net\n"));
         return(plen);
 }
 
@@ -475,6 +495,19 @@ int8_t analyse_get_url(char *str)
                         }
                 }
                 return(-1);
+        }
+        //RCL
+        // Set the Top temperature
+        if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"s_top")){
+          urldecode(gStrbuf);
+          unsigned int newTop = atoi( gStrbuf );
+          if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
+            urldecode(gStrbuf);
+            if (verify_password(gStrbuf)){
+              tankTempTop = newTop;
+              return(1);
+            }
+          }
         }
         //
         if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"sw")){
@@ -732,6 +765,12 @@ int main(void){
                 gPlen = enc28j60PacketReceive(BUFFER_SIZE, buf);
                 dat_p=packetloop_icmp_tcp(buf,gPlen);
 
+                if( switchStateTarget == 0 ){
+                  switchStateTarget = 1;
+                }else{
+                  switchStateTarget = 0;
+                }
+                
                 /*dat_p will ne unequal to zero if there is a valid 
                  * packet (without crc error) */
                 if(dat_p==0){
