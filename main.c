@@ -41,12 +41,12 @@
 
 static uint8_t mymac[6] = {0x54,0x55,0x58,0x10,0x00,0x29};
 // how did I get the mac addr? Translate the first 3 numbers into ascii is: TUX
-static uint8_t myip[4] = {192,168,178,33};
+static uint8_t myip[4] = {192,168,178,120};
 
 // listen port for tcp/www:
 static uint16_t mywwwport=80;
 // the password string (only characters: a-z,0-9,_,.,-,# ), max len 8 char:
-static char password[9]="secret";
+static char password[9]="vEUA4GoP";
 // -------------- do not change anything below this line ----------
 // The buffer is the packet size we can handle and its upper limit is
 // given by the amount of RAM that the atmega chip has. 
@@ -89,9 +89,9 @@ static uint16_t gRecMin=0; // miniutes counter for recording of history graphics
 //
 
 //RCL Turtle control
-unsigned int tankTempTop       = 110;
-unsigned int tankTempBottom    = 100;
-unsigned int switchStateTarget = 0;
+int tankTempTop       = 110;
+int tankTempBottom    = 100;
+int switchStateTarget = 0;
 
 
 // how many values to store (watch out for eeprom overflow):
@@ -802,13 +802,13 @@ int main(void){
                 gPlen = enc28j60PacketReceive(BUFFER_SIZE, buf);
                 dat_p=packetloop_icmp_tcp(buf,gPlen);
 
-                // Need two sensors to test with.  Assuming that the tank is the second sensor
-                if( gOWsensors > 1 ) {
-                    if(  gOWTempdata[1] > tankTempTop ){
+                // Need two sensors to test with.  Assuming that the tank is the first sensor
+                if( gOWsensors > 0 ) {
+                    if(  gOWTempdata[0] > tankTempTop ){
                         // If higher than top, turn on
                         PORTD|= (1<<PORTD7);// transistor on
                         switchStateTarget = 1;
-                    }else if(  gOWTempdata[1] < tankTempBottom ){
+                    }else if(  gOWTempdata[0] < tankTempBottom ){
                         // if lower than bottom, turn off
                         PORTD &= ~(1<<PORTD7);// transistor off
                         switchStateTarget = 0;
