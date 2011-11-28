@@ -89,8 +89,8 @@ static uint16_t gRecMin=0; // miniutes counter for recording of history graphics
 //
 
 //RCL Turtle control
-int tankTempTop       = 110;
-int tankTempBottom    = 100;
+int limitTempTop       = 110;
+int limitTempBottom    = 100;
 int switchStateTarget = 0;
 
 
@@ -445,12 +445,12 @@ uint16_t print_webpage_sensordetails(void)
         plen=fill_tcp_data_int(buf,plen,switchStateTarget);
         plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
 
-        plen=fill_tcp_data_p(buf,plen,PSTR("tankTempTop: "));
-        plen=fill_tcp_data_int(buf,plen,tankTempTop);
+        plen=fill_tcp_data_p(buf,plen,PSTR("limitTempTop: "));
+        plen=fill_tcp_data_int(buf,plen,limitTempTop);
         plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
 
-        plen=fill_tcp_data_p(buf,plen,PSTR("tankTempBottom: "));
-        plen=fill_tcp_data_int(buf,plen,tankTempBottom);
+        plen=fill_tcp_data_p(buf,plen,PSTR("limitTempBottom: "));
+        plen=fill_tcp_data_int(buf,plen,limitTempBottom);
         plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
 
         plen=fill_tcp_data_p(buf,plen,PSTR("S Raw: "));
@@ -512,9 +512,9 @@ int8_t analyse_get_url(char *str)
             if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
                 urldecode(gStrbuf);
                 if (verify_password(gStrbuf)){
-                    tankTempBottom = newTemp;
+                    limitTempBottom = newTemp;
                     eeprom_write_byte((uint8_t *)14,26 );
-                    eeprom_write_byte((uint8_t *)15,tankTempBottom );
+                    eeprom_write_byte((uint8_t *)15,limitTempBottom );
                     return(1);
                 }
             }
@@ -527,9 +527,9 @@ int8_t analyse_get_url(char *str)
             if (find_key_val(str,gStrbuf,STR_BUFFER_SIZE,"pw")){
                 urldecode(gStrbuf);
                 if (verify_password(gStrbuf)){
-                    tankTempTop = newTemp;
+                    limitTempTop = newTemp;
                     eeprom_write_byte((uint8_t *)16,26 );
-                    eeprom_write_byte((uint8_t *)17,tankTempTop );
+                    eeprom_write_byte((uint8_t *)17,limitTempTop );
                     return(1);
                 }
             }
@@ -788,12 +788,12 @@ int main(void){
 
         //RCL Read the top/bottom target tank temperatures from the eeprom
         if (eeprom_read_byte((uint8_t *)14) == 26){
-            // magic byte in eeprom - if 14 is set to 26, we know 15 will have the tankTempBottom
-            tankTempBottom=(int)eeprom_read_byte((uint8_t *)15);
+            // magic byte in eeprom - if 14 is set to 26, we know 15 will have the limitTempBottom
+            limitTempBottom=(int)eeprom_read_byte((uint8_t *)15);
         }
         if (eeprom_read_byte((uint8_t *)16) == 26){
-            // magic byte in eeprom - if 16 is set to 26, we know 17 will have the tankTempTop
-            tankTempBottom=(int)eeprom_read_byte((uint8_t *)17);
+            // magic byte in eeprom - if 16 is set to 26, we know 17 will have the limitTempTop
+            limitTempBottom=(int)eeprom_read_byte((uint8_t *)17);
         }
 
 
@@ -802,13 +802,13 @@ int main(void){
                 gPlen = enc28j60PacketReceive(BUFFER_SIZE, buf);
                 dat_p=packetloop_icmp_tcp(buf,gPlen);
 
-                // Need two sensors to test with.  Assuming that the tank is the first sensor
-                if( gOWsensors > 0 ) {
-                    if(  gOWTempdata[0] > tankTempTop ){
+                // Need two sensors to test with.  Assuming that the fridge is the second sensor
+                if( gOWsensors > 1 ) {
+                    if(  gOWTempdata[1] > limitTempTop ){
                         // If higher than top, turn on
                         PORTD|= (1<<PORTD7);// transistor on
                         switchStateTarget = 1;
-                    }else if(  gOWTempdata[0] < tankTempBottom ){
+                    }else if(  gOWTempdata[1] < limitTempBottom ){
                         // if lower than bottom, turn off
                         PORTD &= ~(1<<PORTD7);// transistor off
                         switchStateTarget = 0;
