@@ -41,10 +41,10 @@
 
 static uint8_t mymac[6] = {0x54,0x55,0x58,0x10,0x00,0x29};
 // how did I get the mac addr? Translate the first 3 numbers into ascii is: TUX
-static uint8_t myip[4] = {192,168,178,120};
+static uint8_t myip[4] = {192,168,1,233};
 
 // listen port for tcp/www:
-static uint16_t mywwwport=80;
+static uint16_t mywwwport=8080;
 // the password string (only characters: a-z,0-9,_,.,-,# ), max len 8 char:
 static char password[9]="vEUA4GoP";
 // -------------- do not change anything below this line ----------
@@ -452,14 +452,6 @@ uint16_t print_webpage_sensordetails(void)
         plen=fill_tcp_data_p(buf,plen,PSTR("limitTempBottom: "));
         plen=fill_tcp_data_int(buf,plen,limitTempBottom);
         plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
-
-        plen=fill_tcp_data_p(buf,plen,PSTR("S Raw: "));
-        plen=fill_tcp_data_int(buf,plen,gOWTempdata[0]);
-        plen=fill_tcp_data_p(buf,plen,PSTR(" : "));
-        plen=fill_tcp_data_int(buf,plen,gOWTempdata[1]);
-        plen=fill_tcp_data_p(buf,plen,PSTR("\n"));
-
-        
 
 END_OF_WEBPAGE:
         plen=fill_tcp_data_p(buf,plen,PSTR("\n</pre><hr>(c)robinclarke.net\n"));
